@@ -1,0 +1,53 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'com.google.cloud.tools.jib' version '3.1.4'
+}
+
+group 'com.sumologic'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+application {
+    mainClassName = "controller.ConfigUpdater"
+}
+
+dependencies {
+    implementation 'org.apache.curator:curator-framework:4.3.0'
+    implementation 'org.apache.curator:curator-recipes:4.3.0'
+    implementation "io.javaoperatorsdk:operator-framework:2.0.0-M1"
+    implementation 'log4j:log4j:1.2.17'
+    implementation "org.takes:takes:1.19"
+    implementation 'org.apache.zookeeper:zookeeper:3.6.2'
+
+// https://mvnrepository.com/artifact/com.typesafe.play/play-json
+    implementation 'com.typesafe.play:play-json_2.13:2.9.2'
+
+    // https://mvnrepository.com/artifact/com.typesafe/config
+    implementation 'com.typesafe:config:1.4.1'
+
+    annotationProcessor "io.javaoperatorsdk:operator-framework:2.0.0-M1"
+//    implementation "io.javaoperatorsdk:operator-framework-spring-boot-starter:1.8.4"
+//    annotationProcessor "io.javaoperatorsdk:operator-framework-spring-boot-starter:1.8.4"
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.7.0'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.7.0'
+}
+jib.to.image = "sumo-kafka-discovery-operator"
+
+test {
+    useJUnitPlatform()
+}
+//
+//bootJar {
+//    enabled = false
+//}
+
+//jar {
+//    enabled = true
+//}
+
+//springBoot {
+//    executable = true
+//}

@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nite-monitoring
+  
+---
+apiVersion: v1
+kind: ConfigMap
+data:
+  application.conf: |
+    kafka-lag-exporter {
+      port = 8000
+      poll-interval = 30 seconds
+      lookup-table-size = 10
+      client-group-id = "kafka-lag-exporter"
+      kafka-client-timeout = 60 seconds
+      clusters = [
+        {
+          name = "kafka-ingest-enriched"
+          bootstrap-brokers = "10.0.44.42:9092, 10.0.79.7:9092, 10.0.43.19:9092"
+          consumer-properties = {}
+          admin-client-properties = {}
+          labels = {}
+        }
+      ]
+      watchers = {
+        strimzi = "true"
+      }
+      metric-whitelist = [
+        ".*"
+      ]
+    }
+
+    akka {
+      loggers = ["akka.event.slf4j.Slf4jLogger"]
+      loglevel = "DEBUG"
+      logging-filter = "akka.event.slf4j.Slf4jLoggingFilter"
+    }
+  logback.xml: |
+    <configuration>
+        <variable name="ROOT_LOG_LEVEL" value="WARN" />
+        <variable name="KAFKA_LAG_EXPORTER_LOG_LEVEL" value="WARN" />
+        <variable name="KAFKA_LAG_EXPORTER_KAFKA_LOG_LEVEL" value="WARN" />
+        <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%date{ISO8601} %-5level %logger{36} %X{akkaSource} - %msg %ex%n</pattern>
+            </encoder>
+        </appender>
+        <logger name="org.apache.kafka" level="${KAFKA_LAG_EXPORTER_KAFKA_LOG_LEVEL}"/>
+        <logger name="com.lightbend.kafkalagexporter" level="${KAFKA_LAG_EXPORTER_LOG_LEVEL}"/>
+        <root level="${ROOT_LOG_LEVEL}">
+            <appender-ref ref="STDOUT" />
+        </root>
+    </configuration>
+metadata:
+  name: nite-kafka-lag-exporter-configmap
+  namespace: nite-monitoring

@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sumo-kafka-discovery-operator
+---
+apiVersion: "kafka.monitoring/v1"
+kind: KMT
+metadata:
+  name: nite-monitoring-kmt
+  namespace: sumo-kafka-discovery-operator
+spec:
+  namespace: "nite-monitoring"
+  configName: "nite-kafka-lag-exporter-configmap"
+  configKey: "application.conf"
