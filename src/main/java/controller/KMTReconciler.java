@@ -33,23 +33,6 @@ public class KMTReconciler implements Reconciler<KMT> {
         this.configUpdater = configUpdater;
     }
 
-    public static void processTreeCacheEvent(CuratorFramework curator, TreeCacheEvent event){
-        System.out.println("Type " + event.getType());
-        switch (event.getType()){
-            case NODE_ADDED: {
-                System.out.println("Node Added " + event.getData().getPath());
-                break;
-            }
-            case NODE_REMOVED: {
-                System.out.println("Node Removed " + event.getData().getPath());
-                break;
-            }
-            case NODE_UPDATED: {
-                System.out.println("Node Updated " + event.getData().getPath());
-                break;
-            }
-        }
-    }
     @Override
     public DeleteControl cleanup(KMT resource, Context context) {
         return Reconciler.super.cleanup(resource, context);
