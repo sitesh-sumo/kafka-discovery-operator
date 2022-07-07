@@ -1,6 +1,5 @@
 package controller;
 
-import com.google.common.base.Joiner;
 import crd.KMT;
 import crd.KMTSpec;
 import io.fabric8.kubernetes.api.model.ConfigMap;
@@ -8,13 +7,16 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.javaoperatorsdk.operator.api.reconciler.*;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.recipes.cache.TreeCacheEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.UnaryOperator;
+
+import org.apache.curator.framework.recipes.cache.TreeCacheEvent.*;
 
 @ControllerConfiguration
 public class KMTReconciler implements Reconciler<KMT> {
@@ -31,6 +33,23 @@ public class KMTReconciler implements Reconciler<KMT> {
         this.configUpdater = configUpdater;
     }
 
+    public static void processTreeCacheEvent(CuratorFramework curator, TreeCacheEvent event){
+        System.out.println("Type " + event.getType());
+        switch (event.getType()){
+            case NODE_ADDED: {
+                System.out.println("Node Added " + event.getData().getPath());
+                break;
+            }
+            case NODE_REMOVED: {
+                System.out.println("Node Removed " + event.getData().getPath());
+                break;
+            }
+            case NODE_UPDATED: {
+                System.out.println("Node Updated " + event.getData().getPath());
+                break;
+            }
+        }
+    }
     @Override
     public DeleteControl cleanup(KMT resource, Context context) {
         return Reconciler.super.cleanup(resource, context);
@@ -44,7 +63,7 @@ public class KMTReconciler implements Reconciler<KMT> {
             Resource<ConfigMap> configMapResource = getConfigMap(spec);
 
             Map<String, String> clusterIps = monitor.getClusterIps();
-
+            log.info("Cluster IPs: " + clusterIps);
             UnaryOperator<ConfigMap> editOp = configMap -> {
                 String applicationConf = configMap.getData().get(spec.getConfigKey());
                 log.info("Current conf = " + applicationConf);
@@ -63,6 +82,9 @@ public class KMTReconciler implements Reconciler<KMT> {
                 }
                 return configMap;
             };
+
+            // As, the library is providing resources of ConfigMap, not ConfigMap alone.
+            // So, we have to edit this way.
             ConfigMap updatedConf = configMapResource.edit(editOp);
             log.info("Updated applicationConf = " + updatedConf.getData().get(spec.getConfigKey()));
         } catch (Exception e) {

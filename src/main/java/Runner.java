@@ -8,6 +8,7 @@ import io.javaoperatorsdk.operator.Operator;
 import io.javaoperatorsdk.operator.config.runtime.DefaultConfigurationService;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.framework.recipes.cache.TreeCache;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +21,8 @@ import org.takes.http.FtBasic;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+
+import static controller.KMTReconciler.processTreeCacheEvent;
 
 public class Runner {
     private static final Logger log = LoggerFactory.getLogger(Runner.class);
@@ -41,8 +44,16 @@ public class Runner {
             CuratorFramework curator =
                     CuratorFrameworkFactory.newClient(zkConnectionString,
                             new ExponentialBackoffRetry(1000, 3));
+            curator.getConnectionStateListenable().addListener((c, newState)-> {
+                log.info("state =" + newState);
+            });
             curator.start();
 
+            log.info("cache started");
+            // todo - hardcoded for now, need to pass kafkaPath + clusterPath
+            TreeCache cache = TreeCache.newBuilder(curator, "/service/kafka-ingest-enriched").setCacheData(false).build();
+            cache.getListenable().addListener(KMTReconciler::processTreeCacheEvent);
+            cache.start();
 
             KafkaBrokerConfigMonitor monitor = new KafkaBrokerConfigMonitor(curator, kafkaBasePath, kafkaClusters);
             monitor.start();

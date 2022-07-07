@@ -27,7 +27,7 @@ spec:
         imagePullPolicy: IfNotPresent
         env:
           - name: zkConnect
-            value: 172.17.0.25:2181
+            value: 172.17.0.21:2181
           - name: kafkaClusters
             value: kafka-ingest-enriched
           - name: kafkaBasePath

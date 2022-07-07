@@ -33,13 +33,13 @@ public class KafkaBrokerConfigMonitor implements LifecycleAware {
         clusterToZNodeMap.forEach((clusterPrefix, treeCache) -> {
             Map<String, ChildData> brokerNodeAndDataMap =
                     treeCache.getCurrentChildren(kafkaBasePath + "/" + clusterPrefix);
-            logger.info("^^^PATH: " + kafkaBasePath + "/" + clusterPrefix);
             if (brokerNodeAndDataMap != null && !brokerNodeAndDataMap.isEmpty()) {
                 brokerNodeAndDataMap.values().forEach(childData -> {
                     try {
                         byte[] brokerData = childData.getData();
                         String data = new String(brokerData);
 
+                        logger.info("ChildPath: " + childData.getPath());
                         logger.error("Broker data: " + data);
                         parseAndPopulateMap(map, data);
                     } catch (Exception ex) {
