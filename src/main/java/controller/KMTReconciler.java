@@ -3,6 +3,9 @@ package controller;
 import crd.KMT;
 import crd.KMTSpec;
 import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
+import io.fabric8.kubernetes.client.Config;
+import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.javaoperatorsdk.operator.api.reconciler.*;
@@ -12,6 +15,7 @@ import org.apache.curator.framework.recipes.cache.TreeCacheEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.UnaryOperator;
@@ -70,13 +74,27 @@ public class KMTReconciler implements Reconciler<KMT> {
             // So, we have to edit this way.
             ConfigMap updatedConf = configMapResource.edit(editOp);
             log.info("Updated applicationConf = " + updatedConf.getData().get(spec.getConfigKey()));
+
+            log.info("Creating out new configMap");
+            String name = "test-config-map";
+            Resource<ConfigMap> currentConfigMapResource = getConfigMapByNameSpace(spec);
+            ConfigMap configMap = currentConfigMapResource.createOrReplace(new ConfigMapBuilder()
+                    .withNewMetadata()
+                    .withName(name)
+                    .endMetadata()
+                    .addToData("foo", "" + new Date())
+                    .addToData("bar", "test")
+                    .build());
+            log.info("Inserted ConfigMap at {} data {}", configMap.getMetadata().getSelfLink(), configMap.getData());
+
         } catch (Exception e) {
             e.printStackTrace();
+            log.error(e.getMessage());
             resource.setStatus(e.getMessage());
         }
         resource.setStatus("ok");
-
-        return UpdateControl.updateStatus(resource).rescheduleAfter(30, TimeUnit.SECONDS);
+        //increased from 30 - 120 for testing
+        return UpdateControl.updateStatus(resource).rescheduleAfter(2, TimeUnit.MINUTES);
     }
 
     private void restartDeployment(KMTSpec spec) {
@@ -91,6 +109,11 @@ public class KMTReconciler implements Reconciler<KMT> {
         return client.configMaps()
                 .inNamespace(spec.getNamespace())
                 .withName(spec.getConfigName());
+    }
+
+    private Resource<ConfigMap> getConfigMapByNameSpace(KMTSpec spec) {
+        return (Resource<ConfigMap>) client.configMaps()
+                .inNamespace(spec.getNamespace());
     }
 }
 
