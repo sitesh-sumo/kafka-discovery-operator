@@ -9,6 +9,7 @@ import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.javaoperatorsdk.operator.api.reconciler.*;
+import io.javaoperatorsdk.operator.api.reconciler.dependent.Dependent;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.cache.TreeCacheEvent;
@@ -21,8 +22,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.UnaryOperator;
 
 import org.apache.curator.framework.recipes.cache.TreeCacheEvent.*;
+import resource.ConfigMapDependentResource;
 
-@ControllerConfiguration
+@ControllerConfiguration(
+    dependents = {@Dependent(type = ConfigMapDependentResource.class)}
+)
 public class KMTReconciler implements Reconciler<KMT> {
     private final Logger log = LoggerFactory.getLogger(KMTReconciler.class);
     private final KafkaBrokerConfigMonitor monitor;
@@ -35,11 +39,6 @@ public class KMTReconciler implements Reconciler<KMT> {
         this.client = kubernetesClient;
         this.monitor = brokerConfigMonitor;
         this.configUpdater = configUpdater;
-    }
-
-    @Override
-    public DeleteControl cleanup(KMT resource, Context context) {
-        return Reconciler.super.cleanup(resource, context);
     }
 
     @Override

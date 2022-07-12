@@ -5,7 +5,6 @@ import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.Operator;
-import io.javaoperatorsdk.operator.config.runtime.DefaultConfigurationService;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.framework.recipes.cache.TreeCache;
@@ -48,7 +47,7 @@ public class Runner {
         try {
             Config config = new ConfigBuilder().build();
             KubernetesClient client = new DefaultKubernetesClient(config);
-            Operator operator = new Operator(client, DefaultConfigurationService.instance());
+            Operator operator = new Operator(client);
 
             String zkConnectionString = System.getenv("zkConnect");
             log.info("zkConnect = " + zkConnectionString);
