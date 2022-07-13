@@ -45,6 +45,7 @@ public class KMTReconciler implements Reconciler<KMT> {
     public UpdateControl<KMT> reconcile(KMT resource, Context context) {
         log.info("Starting reconcile -----------");
         try {
+
             KMTSpec spec = resource.getSpec();
             Resource<ConfigMap> configMapResource = getConfigMap(spec);
 
@@ -93,7 +94,8 @@ public class KMTReconciler implements Reconciler<KMT> {
         }
         resource.setStatus("ok");
         //increased from 30 - 120 for testing
-        return UpdateControl.updateStatus(resource).rescheduleAfter(2, TimeUnit.MINUTES);
+//        return UpdateControl.updateStatus(resource).rescheduleAfter(2, TimeUnit.MINUTES);
+        return UpdateControl.patchStatus(resource);
     }
 
     private void restartDeployment(KMTSpec spec) {

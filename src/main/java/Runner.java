@@ -43,7 +43,7 @@ public class Runner {
         }
     }
     public static void main(String[] args) {
-        System.out.println("Starting Sumo-kafka-discovery-operator ----");
+        log.info("Starting Sumo-kafka-discovery-operator ----");
         try {
             Config config = new ConfigBuilder().build();
             KubernetesClient client = new DefaultKubernetesClient(config);
@@ -79,7 +79,7 @@ public class Runner {
             operator.register(controller);
             operator.start();
         } catch (Exception e) {
-            System.out.println("Oops, something went wrong");
+            log.error("Oops, something went wrong", e);
             e.printStackTrace();
         }
 
@@ -87,7 +87,8 @@ public class Runner {
             new FtBasic(new TkFork(new FkRegex("/health", "ALL GOOD!")), 8080).start(Exit.NEVER);
         } catch (IOException e) {
             e.printStackTrace();
+            log.error("IO Exception", e);
         }
-        System.out.println("Finished Sumo-kafka-discovery-operator ----");
+       log.info("Finished Sumo-kafka-discovery-operator ----");
     }
 }
