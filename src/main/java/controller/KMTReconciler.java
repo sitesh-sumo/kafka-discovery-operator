@@ -5,20 +5,18 @@ import crd.KMTSpec;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
-import io.javaoperatorsdk.operator.api.reconciler.*;
+import io.javaoperatorsdk.operator.api.reconciler.Context;
+import io.javaoperatorsdk.operator.api.reconciler.ControllerConfiguration;
+import io.javaoperatorsdk.operator.api.reconciler.Reconciler;
+import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 import io.javaoperatorsdk.operator.api.reconciler.dependent.Dependent;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.recipes.cache.TreeCacheEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import resources.ConfigMapDependentResource;
 
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.function.UnaryOperator;
-
-import org.apache.curator.framework.recipes.cache.TreeCacheEvent.*;
-import resources.ConfigMapDependentResource;
 
 @ControllerConfiguration(
         dependents = {@Dependent(type = ConfigMapDependentResource.class)}
