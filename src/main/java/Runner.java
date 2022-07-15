@@ -1,7 +1,6 @@
 import controller.ConfigUpdater;
 import controller.KMTReconciler;
 import controller.KafkaBrokerConfigMonitor;
-import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
@@ -9,7 +8,6 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.Operator;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.framework.recipes.cache.TreeCache;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,12 +56,8 @@ public class Runner {
             operator.register(controller);
             operator.start();
 
-            //todo - wait for the configMap to be up and running
-
-            ZookeeperWatcher zookeeperWatcher = new ZookeeperWatcher(client);
-            TreeCache cache = TreeCache.newBuilder(curator, "/service/kafka-ingest-enriched").setCacheData(false).build();
-            cache.getListenable().addListener((c, event)-> zookeeperWatcher.processTreeCacheEvent(event));
-            cache.start();
+            ZookeeperWatcher zookeeperWatcher = new ZookeeperWatcher(curator, client);
+            zookeeperWatcher.start();
 
 
         } catch (Exception e) {
