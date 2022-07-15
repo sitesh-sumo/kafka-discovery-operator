@@ -1,6 +1,7 @@
 import controller.ConfigUpdater;
 import controller.KMTReconciler;
 import controller.KafkaBrokerConfigMonitor;
+import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
@@ -9,7 +10,6 @@ import io.javaoperatorsdk.operator.Operator;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.framework.recipes.cache.TreeCache;
-import org.apache.curator.framework.recipes.cache.TreeCacheEvent;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,31 +17,16 @@ import org.takes.facets.fork.FkRegex;
 import org.takes.facets.fork.TkFork;
 import org.takes.http.Exit;
 import org.takes.http.FtBasic;
+import watcher.ZookeeperWatcher;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
+
 public class Runner {
     private static final Logger log = LoggerFactory.getLogger(Runner.class);
 
-    private static void processTreeCacheEvent(CuratorFramework curator, TreeCacheEvent event){
-        log.info("Type " + event.getType());
-        switch (event.getType()){
-            case NODE_ADDED: {
-                log.info("Node Added " + event.getData().getPath());
-                break;
-            }
-            case NODE_REMOVED: {
-                log.info("Node Removed " + event.getData().getPath());
-                break;
-            }
-            case NODE_UPDATED: {
-                log.info("Node Updated " + event.getData().getPath());
-                break;
-            }
-        }
-    }
     public static void main(String[] args) {
         log.info("Starting Sumo-kafka-discovery-operator ----");
         try {
@@ -63,12 +48,6 @@ public class Runner {
             });
             curator.start();
 
-            log.info("cache started");
-            // todo - hardcoded for now, need to pass kafkaPath + clusterPath
-            TreeCache cache = TreeCache.newBuilder(curator, "/service/kafka-ingest-enriched").setCacheData(false).build();
-            cache.getListenable().addListener(Runner::processTreeCacheEvent);
-            cache.start();
-
             KafkaBrokerConfigMonitor monitor = new KafkaBrokerConfigMonitor(curator, kafkaBasePath, kafkaClusters);
             monitor.start();
 
@@ -78,6 +57,15 @@ public class Runner {
             KMTReconciler controller = new KMTReconciler(client, monitor, configUpdater);
             operator.register(controller);
             operator.start();
+
+            //todo - wait for the configMap to be up and running
+
+            ZookeeperWatcher zookeeperWatcher = new ZookeeperWatcher(client);
+            TreeCache cache = TreeCache.newBuilder(curator, "/service/kafka-ingest-enriched").setCacheData(false).build();
+            cache.getListenable().addListener((c, event)-> zookeeperWatcher.processTreeCacheEvent(event));
+            cache.start();
+
+
         } catch (Exception e) {
             log.info("Oops, something went wrong", e);
             e.printStackTrace();

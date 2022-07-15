@@ -8,10 +8,12 @@ import io.javaoperatorsdk.operator.processing.dependent.Creator;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependentResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import watcher.Watcher;
 
 import java.util.Date;
+import java.util.List;
 
-public class ConfigMapDependentResource extends KubernetesDependentResource<ConfigMap, KMT> implements Creator<ConfigMap, KMT> {
+public class ConfigMapDependentResource extends KubernetesDependentResource<ConfigMap, KMT> implements Creator<ConfigMap, KMT>, Watcher {
 
     private static final Logger log = LoggerFactory.getLogger(ConfigMapDependentResource.class);
 
@@ -22,14 +24,18 @@ public class ConfigMapDependentResource extends KubernetesDependentResource<Conf
     @Override
     protected ConfigMap desired(KMT primary, Context<KMT> context) {
         String name = "desired-config-map";
-        ConfigMap configMap = new ConfigMapBuilder()
-                .withNewMetadata()
-                .withNamespace(getKubernetesClient().getNamespace())
-                .withName(name)
-                .endMetadata()
-                .addToData("foo1", "" + new Date())
-                .addToData("bar1", "test1")
-                .build();
+        ConfigMap configMap = null;
+        try {
+            configMap = new ConfigMapBuilder()
+                    .withNewMetadata()
+                    .withNamespace(getKubernetesClient().getNamespace())
+                    .withName(name)
+                    .endMetadata()
+                    .addToData("broker-ip","")
+                    .build();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
 
         log.info("Inserted ConfigMap at {} data {}", configMap.getMetadata().getSelfLink(), configMap.getData());
         return configMap;
