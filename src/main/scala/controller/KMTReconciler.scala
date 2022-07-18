@@ -18,7 +18,7 @@ class KMTReconciler extends Reconciler[KMT] {
   private var client: KubernetesClient = null
   private var configUpdater: ConfigUpdater = null
 
-  def this(kubernetesClient: KubernetesClient, brokerConfigMonitor: KafkaBrokerConfigMonitor, configUpdater: ConfigUpdater) {
+  def this(kubernetesClient: KubernetesClient, brokerConfigMonitor: KafkaBrokerConfigMonitor, configUpdater: ConfigUpdater) =  {
     this()
     this.client = kubernetesClient
     this.monitor = brokerConfigMonitor

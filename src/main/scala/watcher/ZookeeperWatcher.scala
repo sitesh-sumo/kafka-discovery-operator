@@ -23,7 +23,7 @@ class ZookeeperWatcher extends DefaultWatcher {
   private var kubernetesClient: KubernetesClient = null
   private var curator: CuratorFramework = null
 
-  def this(curatorFramework: CuratorFramework, client: KubernetesClient) {
+  def this(curatorFramework: CuratorFramework, client: KubernetesClient) = {
     this()
     curator = curatorFramework
     kubernetesClient = client
@@ -52,8 +52,9 @@ class ZookeeperWatcher extends DefaultWatcher {
             val currentConfigMap: ConfigMap = kubernetesClient.configMaps.inNamespace(kubernetesClient.getNamespace).withName(configName).get
             try {
               var brokerIps = new ListBuffer[String]
+              //todo - check if buggy ?
               if (!(currentConfigMap.getData.get("broker-ip") == ""))
-                brokerIps += currentConfigMap.getData.get("broker-ip").split(",")
+                brokerIps += currentConfigMap.getData.get("broker-ip").split(",").mkString(",")
               val currConfigMap: ConfigMap = kubernetesClient.configMaps.inNamespace(kubernetesClient.getNamespace).withName(configName).get()
               val newData = new util.HashMap[String, String]()
               brokerIps += event.getData.getPath
@@ -87,7 +88,7 @@ class ZookeeperWatcher extends DefaultWatcher {
       case Type.NODE_UPDATED =>
         log.info("Node Updated " + event.getData.getPath)
 
-
+      case _ => {}
     }
   }
 

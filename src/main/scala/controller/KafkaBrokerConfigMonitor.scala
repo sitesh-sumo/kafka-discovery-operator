@@ -7,6 +7,7 @@ import org.slf4j.{Logger, LoggerFactory}
 import play.api.libs.json.{JsArray, JsNumber, JsObject, JsString, JsValue, Json}
 
 import java.util
+import scala.collection.convert.ImplicitConversions.`collection asJava`
 
 
 class KafkaBrokerConfigMonitor extends LifecycleAware {
@@ -15,7 +16,7 @@ class KafkaBrokerConfigMonitor extends LifecycleAware {
   private val clusterToZNodeMap: util.Map[String, TreeCache] = new util.HashMap[String, TreeCache]
   private var kafkaBasePath: String = null
 
-  def this(curator: CuratorFramework, kafkaBasePath: String, kafkaClusters: util.List[String]) {
+  def this(curator: CuratorFramework, kafkaBasePath: String, kafkaClusters: List[String]) = {
     this()
     this.kafkaBasePath = kafkaBasePath
     kafkaClusters.forEach((cluster: String) => clusterToZNodeMap.put(cluster, new TreeCache(curator, kafkaBasePath + "/" + cluster)))
@@ -43,7 +44,7 @@ class KafkaBrokerConfigMonitor extends LifecycleAware {
     val cluster = jsValue.value("properties").asInstanceOf[JsObject].value("node.cluster").asInstanceOf[JsString]
     map.putIfAbsent(cluster.value, new util.ArrayList[String])
     val ipsForCluster = map.get(cluster.value)
-    nodeAddresses.value.toStream.map((x: JsValue) => x.asInstanceOf[JsString].value + ":" + port).foreach(ipsForCluster.add)
+    nodeAddresses.value.to(LazyList).map((x: JsValue) => x.asInstanceOf[JsString].value + ":" + port).foreach(ipsForCluster.add)
   }
 
   def getClusterIps: util.Map[String, String] = {

@@ -14,7 +14,7 @@ class ConfigUpdater {
   private var nameKey: String = null
   private var bootStrapServerKey: String = null
 
-  def this(clusterListPath: String, nameKey: String, bootStrapServerKey: String) {
+  def this(clusterListPath: String, nameKey: String, bootStrapServerKey: String) =  {
     this()
     this.clusterListPath = clusterListPath
     this.nameKey = nameKey
