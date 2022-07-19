@@ -8,8 +8,9 @@ import org.apache.curator.framework.{CuratorFramework, CuratorFrameworkFactory}
 import org.apache.curator.retry.ExponentialBackoffRetry
 import org.slf4j.LoggerFactory
 
-import java.util
+import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
+import scala.jdk.CollectionConverters._
 import scala.util.control.Breaks.{break, breakable}
 
 class ZookeeperWatcher extends DefaultWatcher {
@@ -56,11 +57,11 @@ class ZookeeperWatcher extends DefaultWatcher {
               if (!(currentConfigMap.getData.get("broker-ip") == ""))
                 brokerIps += currentConfigMap.getData.get("broker-ip").split(",").mkString(",")
               val currConfigMap: ConfigMap = kubernetesClient.configMaps.inNamespace(kubernetesClient.getNamespace).withName(configName).get()
-              val newData = new util.HashMap[String, String]()
+              val newData = new mutable.HashMap[String, String]()
               brokerIps += event.getData.getPath
               val newConfigMap: ConfigMap = new ConfigMap(currConfigMap.getApiVersion, currConfigMap.getBinaryData, currConfigMap.getData, currConfigMap.getImmutable, currConfigMap.getKind, currConfigMap.getMetadata)
               newData.put("broker-ip", brokerIps.toList.mkString(","))
-              newConfigMap.setData(newData)
+              newConfigMap.setData(newData.asJava)
               updateConfigMap(currConfigMap, newConfigMap)
               break
             } catch {

@@ -10,32 +10,22 @@ import org.apache.commons.lang3.tuple.Pair
 import org.slf4j.LoggerFactory
 import resources.ConfigMapDependentResource
 
-import java.util
+import scala.collection.mutable
 import java.util.function.UnaryOperator
 
 @ControllerConfiguration(
   dependents = Array(new Dependent(`type` = classOf[ConfigMapDependentResource]))
 )
-class KMTReconciler extends Reconciler[KMT] {
+class KMTReconciler(client: KubernetesClient, monitor: KafkaBrokerConfigMonitor, configUpdater: ConfigUpdater) extends Reconciler[KMT] {
 
   private val log = LoggerFactory.getLogger(classOf[KMTReconciler])
-  private var monitor: KafkaBrokerConfigMonitor = null
-  private var client: KubernetesClient = null
-  private var configUpdater: ConfigUpdater = null
-
-  def this(kubernetesClient: KubernetesClient, brokerConfigMonitor: KafkaBrokerConfigMonitor, configUpdater: ConfigUpdater) =  {
-    this()
-    this.client = kubernetesClient
-    this.monitor = brokerConfigMonitor
-    this.configUpdater = configUpdater
-  }
 
   override def reconcile(resource: KMT, context: Context[KMT]): UpdateControl[KMT] = {
     log.info("Starting reconcile -----------")
     try {
       val spec: KMTSpec = resource.getSpec
       val configMapResource: Resource[ConfigMap] = getConfigMap(spec)
-      val clusterIps: util.Map[String, String] = monitor.getClusterIps
+      val clusterIps: mutable.Map[String, String] = monitor.getClusterIps
       log.info("Cluster IPs: " + clusterIps)
       val editOp: UnaryOperator[ConfigMap] = (configMap: ConfigMap) => {
         val applicationConf: String = configMap.getData.get(spec.getConfigKey)
