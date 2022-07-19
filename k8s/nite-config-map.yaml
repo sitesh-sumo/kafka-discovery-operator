@@ -16,7 +16,7 @@ data:
       kafka-client-timeout = 60 seconds
       clusters = [
         {
-          name = "kafka-ingest-enriched"
+          name = "kafka-ingest-enriched-aa"
           bootstrap-brokers = "10.0.44.42:9092, 10.0.79.7:9092, 10.0.43.19:9092"
           consumer-properties = {}
           admin-client-properties = {}
