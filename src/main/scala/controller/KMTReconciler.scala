@@ -1,16 +1,21 @@
 package controller
 
 import crd.{KMT, KMTSpec}
-import io.fabric8.kubernetes.api.model.ConfigMap
+import io.fabric8.kubernetes.api.model.{ConfigMap, HasMetadata}
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.dsl.Resource
-import io.javaoperatorsdk.operator.api.reconciler.{Context, Reconciler, UpdateControl}
+import io.javaoperatorsdk.operator.api.reconciler.dependent.{Dependent, DependentResource}
+import io.javaoperatorsdk.operator.api.reconciler.{Context, ControllerConfiguration, Reconciler, UpdateControl}
 import org.apache.commons.lang3.tuple.Pair
 import org.slf4j.LoggerFactory
+import resources.ConfigMapDependentResource
 
 import java.util
 import java.util.function.UnaryOperator
 
+@ControllerConfiguration(
+  dependents = Array(new Dependent(`type` = classOf[ConfigMapDependentResource]))
+)
 class KMTReconciler extends Reconciler[KMT] {
 
   private val log = LoggerFactory.getLogger(classOf[KMTReconciler])

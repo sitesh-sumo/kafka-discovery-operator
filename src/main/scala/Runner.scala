@@ -10,8 +10,8 @@ import watcher.ZookeeperWatcher
 
 import java.io.IOException
 
-class Runner {
-  private val log = LoggerFactory.getLogger(classOf[Runner])
+object Runner {
+  private val log = LoggerFactory.getLogger("Runner")
 
   def main(args: Array[String]): Unit = {
     log.info("Starting Sumo-kafka-discovery-operator ----")

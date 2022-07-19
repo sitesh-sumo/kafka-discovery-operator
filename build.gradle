@@ -16,6 +16,15 @@ application {
     mainClassName = "Runner"
 }
 
+//jib {
+//    configurations {
+//        mainClassName = "Runner"
+//        setMainClassName("Runner")
+//
+//    }
+//
+//}
+
 dependencies {
     implementation 'org.apache.curator:curator-framework:4.3.0'
     implementation 'org.apache.curator:curator-recipes:4.3.0'
