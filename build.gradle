@@ -33,6 +33,10 @@ dependencies {
     implementation "org.takes:takes:1.19"
     implementation 'org.apache.zookeeper:zookeeper:3.6.2'
 
+    // https://mvnrepository.com/artifact/net.liftweb/lift-json
+    implementation group: 'net.liftweb', name: 'lift-json_2.13', version: '3.5.0'
+
+
 // https://mvnrepository.com/artifact/com.typesafe.play/play-json
     implementation 'com.typesafe.play:play-json_2.13:2.9.2'
 

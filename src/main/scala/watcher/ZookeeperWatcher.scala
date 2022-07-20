@@ -2,6 +2,8 @@ package watcher
 
 import io.fabric8.kubernetes.api.model.ConfigMap
 import io.fabric8.kubernetes.client.{Config, ConfigBuilder, DefaultKubernetesClient, KubernetesClient}
+import net.liftweb.json.Serialization.write
+import net.liftweb.json._
 import org.apache.curator.framework.recipes.cache.TreeCacheEvent.Type
 import org.apache.curator.framework.recipes.cache.{TreeCache, TreeCacheEvent}
 import org.apache.curator.framework.{CuratorFramework, CuratorFrameworkFactory}
@@ -13,10 +15,14 @@ import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
 import scala.util.control.Breaks.{break, breakable}
 
+case class Cluster(var name: String, var brokerIps: List[String])
+
+case class ConfigData(clusters: List[Cluster])
+
 class ZookeeperWatcher extends DefaultWatcher {
 
   private val log = LoggerFactory.getLogger(classOf[ZookeeperWatcher])
-  private val zkPath = "/service/kafka-ingest-enriched"
+  private val zkPath = "/service"
   private val configName = "desired-config-map"
   var defaultRetries = 5;
   var defaultTimeToWaitMillis = 1000;
@@ -46,6 +52,10 @@ class ZookeeperWatcher extends DefaultWatcher {
     event.getType match {
       case Type.NODE_ADDED =>
         log.info("Node Added " + event.getData.getPath)
+        var nodePath: Array[String] = event.getData.getPath.split("/").filter(ele => ele.nonEmpty)
+        val clusterName = nodePath(1)
+        val brokerIp = nodePath(2)
+
         var retries = 0
         breakable {
           while (retries < defaultRetries) {
@@ -53,16 +63,25 @@ class ZookeeperWatcher extends DefaultWatcher {
             val currentConfigMap: ConfigMap = kubernetesClient.configMaps.inNamespace(kubernetesClient.getNamespace).withName(configName).get
             try {
               var brokerIps = new ListBuffer[String]
-              //todo - check if buggy ?
-              if (!(currentConfigMap.getData.get("broker-ip") == ""))
-                brokerIps += currentConfigMap.getData.get("broker-ip").split(",").mkString(",")
-              val currConfigMap: ConfigMap = kubernetesClient.configMaps.inNamespace(kubernetesClient.getNamespace).withName(configName).get()
+              var jValue: JValue = null
+              var configMapData: ConfigData = null;
+              var currentClusterIdx: Int = -1
+              implicit val formats = DefaultFormats
+              if (currentConfigMap.getData.get("configMapData") != null) {
+                jValue = parse(currentConfigMap.getData.get("configMapData"))
+                configMapData = jValue.extract[ConfigData]
+                currentClusterIdx = configMapData.clusters.indexOf(configMapData.clusters.filter((ele) => ele.name.equals(clusterName)).head)
+                log.info("Current Cluster Index {}", currentClusterIdx)
+                configMapData.clusters(currentClusterIdx).brokerIps.foreach((ele) => brokerIps.addOne(ele))
+              }
               val newData = new mutable.HashMap[String, String]()
-              brokerIps += event.getData.getPath
-              val newConfigMap: ConfigMap = new ConfigMap(currConfigMap.getApiVersion, currConfigMap.getBinaryData, currConfigMap.getData, currConfigMap.getImmutable, currConfigMap.getKind, currConfigMap.getMetadata)
-              newData.put("broker-ip", brokerIps.toList.mkString(","))
+              brokerIps += brokerIp
+
+              val newConfigMap: ConfigMap = new ConfigMap(currentConfigMap.getApiVersion, currentConfigMap.getBinaryData, currentConfigMap.getData, currentConfigMap.getImmutable, currentConfigMap.getKind, currentConfigMap.getMetadata)
+              configMapData.clusters(currentClusterIdx).brokerIps = brokerIps.toList
+              newData.put("configMapData", write(configMapData))
               newConfigMap.setData(newData.asJava)
-              updateConfigMap(currConfigMap, newConfigMap)
+              updateConfigMap(currentConfigMap, newConfigMap)
               break
             } catch {
               case ex: Exception =>
@@ -77,7 +96,7 @@ class ZookeeperWatcher extends DefaultWatcher {
                     e.printStackTrace()
                 }
             }
-            retries -= 1
+            retries += 1
           }
         }
 
