@@ -86,11 +86,10 @@ class ZookeeperWatcher extends DefaultWatcher {
     brokerIps.addOne(brokerIp)
     childClusterData.brokerIps = Some(brokerIps.toList)
 
-    val newConfigMap: ConfigMap = new ConfigMap(currentConfigMap.getApiVersion, currentConfigMap.getBinaryData, currentConfigMap.getData, currentConfigMap.getImmutable, currentConfigMap.getKind, currentConfigMap.getMetadata)
     val newData = new mutable.HashMap[String, String]()
     newData.put("configMapData", write(childClusterData))
-    newConfigMap.setData(newData.asJava)
-    updateConfigMap(name, currentConfigMap, newConfigMap)
+    updateConfigMap(name, currentConfigMap, newData)
+
     log.info("Updated Child CM")
   }
 
@@ -139,17 +138,16 @@ class ZookeeperWatcher extends DefaultWatcher {
                   configMapData.clusters.get(currentClusterIdx).brokerIps.foreach((ele) => brokerIps.addOne(ele))
                 }
               }
-              val newData = new mutable.HashMap[String, String]()
-              brokerIps += brokerIp
 
-              val newConfigMap: ConfigMap = new ConfigMap(currentConfigMap.getApiVersion, currentConfigMap.getBinaryData, currentConfigMap.getData, currentConfigMap.getImmutable, currentConfigMap.getKind, currentConfigMap.getMetadata)
+              brokerIps += brokerIp
               if (configMapData.clusters.isDefined) {
                 configMapData.clusters.get(currentClusterIdx).brokerIps = brokerIps.toList
               }
 
+              val newData = new mutable.HashMap[String, String]()
               newData.put("configMapData", write(configMapData))
-              newConfigMap.setData(newData.asJava)
-              updateConfigMap(configName, currentConfigMap, newConfigMap)
+              updateConfigMap(configName, currentConfigMap, newData)
+
               break
             } catch {
               case ex: Exception =>
@@ -191,12 +189,15 @@ class ZookeeperWatcher extends DefaultWatcher {
     currentConfigMap.getData.get("broker-ip").split(",").toList
   }
 
-  def updateConfigMap(configMapName: String, oldConfigMap: ConfigMap, newConfigMap: ConfigMap): Unit = {
+  def updateConfigMap(configMapName: String, currentConfigMap: ConfigMap, newData: mutable.HashMap[String, String]): Unit = {
     try {
       log.info("Updating configMap")
+      val newConfigMap: ConfigMap = new ConfigMap(currentConfigMap.getApiVersion, currentConfigMap.getBinaryData, currentConfigMap.getData, currentConfigMap.getImmutable, currentConfigMap.getKind, currentConfigMap.getMetadata)
+      newConfigMap.setData(newData.asJava)
+
       val config = new ConfigBuilder().build()
       val client = new DefaultKubernetesClient(config)
-      client.configMaps.inNamespace(client.getNamespace).withName(configMapName).lockResourceVersion(oldConfigMap.getMetadata.getResourceVersion).replace(newConfigMap)
+      client.configMaps.inNamespace(client.getNamespace).withName(configMapName).lockResourceVersion(currentConfigMap.getMetadata.getResourceVersion).replace(newConfigMap)
     } catch {
       case e: Exception =>
         log.error("Failed to create Zookeeper Watcher", e)
