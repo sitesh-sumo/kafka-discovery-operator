@@ -1,6 +1,6 @@
 package watcher
 
-import io.fabric8.kubernetes.api.model.ConfigMap
+import io.fabric8.kubernetes.api.model.{ConfigMap, ConfigMapBuilder}
 import io.fabric8.kubernetes.client.{Config, ConfigBuilder, DefaultKubernetesClient, KubernetesClient}
 import net.liftweb.json.Serialization.write
 import net.liftweb.json._
@@ -16,6 +16,8 @@ import scala.jdk.CollectionConverters._
 import scala.util.control.Breaks.{break, breakable}
 
 case class Cluster(var name: String, var brokerIps: List[String])
+
+case class ChildCluster(var brokerIps: Option[List[String]])
 
 case class ConfigData(var clusters: Option[List[Cluster]])
 
@@ -59,6 +61,39 @@ class ZookeeperWatcher extends DefaultWatcher {
     configMapData.clusters = Some(clusters.toList)
   }
 
+  def createChildConfigMap(name: String) = {
+    val configMaps = kubernetesClient.configMaps().inNamespace(kubernetesClient.getNamespace)
+    try {
+      val initConfigMapData = "{\"brokerIps\":null}"
+      val newConfigMap = new ConfigMapBuilder().withNewMetadata.withNamespace(kubernetesClient.getNamespace).withName(name).endMetadata.addToData("configMapData", initConfigMapData).build
+      configMaps.createOrReplace(newConfigMap)
+    }
+    catch {
+      case e: Exception =>
+        throw new RuntimeException(e)
+    }
+  }
+
+  def addBrokerIpToChildConfigMap(name: String, brokerIp: String) = {
+    val currentConfigMap = kubernetesClient.configMaps().inNamespace(kubernetesClient.getNamespace).withName(name).get
+    val jValue: JValue = parse(currentConfigMap.getData.get("configMapData"))
+    implicit val formats: DefaultFormats.type = DefaultFormats
+    val childClusterData = jValue.extract[ChildCluster]
+    log.info("^^childData" + childClusterData)
+    val brokerIps = ListBuffer[String]()
+    if (childClusterData.brokerIps.isDefined)
+      childClusterData.brokerIps.get.foreach(ele => brokerIps += ele)
+    brokerIps.addOne(brokerIp)
+    childClusterData.brokerIps = Some(brokerIps.toList)
+
+    val newConfigMap: ConfigMap = new ConfigMap(currentConfigMap.getApiVersion, currentConfigMap.getBinaryData, currentConfigMap.getData, currentConfigMap.getImmutable, currentConfigMap.getKind, currentConfigMap.getMetadata)
+    val newData = new mutable.HashMap[String, String]()
+    newData.put("configMapData", write(childClusterData))
+    newConfigMap.setData(newData.asJava)
+    updateConfigMap(name, currentConfigMap, newConfigMap)
+    log.info("Updated Child CM")
+  }
+
   def getClusterIndex(configMapData: ConfigData, clusterName: String): Int = {
     if (configMapData.clusters.isDefined) {
       val currCluster = configMapData.clusters.get.filter(ele => ele.name.equals(clusterName))
@@ -74,7 +109,7 @@ class ZookeeperWatcher extends DefaultWatcher {
     event.getType match {
       case Type.NODE_ADDED =>
         log.info("Node Added " + event.getData.getPath)
-        var nodePath: Array[String] = event.getData.getPath.split("/").filter(ele => ele.nonEmpty)
+        val nodePath: Array[String] = event.getData.getPath.split("/").filter(ele => ele.nonEmpty)
         val clusterName = nodePath(1)
         val brokerIp = nodePath(2)
 
@@ -84,7 +119,7 @@ class ZookeeperWatcher extends DefaultWatcher {
             log.info("retrying..{}", retries)
             val currentConfigMap: ConfigMap = kubernetesClient.configMaps.inNamespace(kubernetesClient.getNamespace).withName(configName).get
             try {
-              var brokerIps = new ListBuffer[String]
+              val brokerIps = new ListBuffer[String]
               var jValue: JValue = null
               var configMapData: ConfigData = null;
               var currentClusterIdx: Int = -1
@@ -95,8 +130,10 @@ class ZookeeperWatcher extends DefaultWatcher {
                 currentClusterIdx = getClusterIndex(configMapData, clusterName)
                 if (currentClusterIdx == -1) {
                   createChildCluster(configMapData, clusterName)
+                  createChildConfigMap(clusterName);
                   currentClusterIdx = getClusterIndex(configMapData, clusterName)
                 }
+                addBrokerIpToChildConfigMap(clusterName, brokerIp)
                 log.info("Current Cluster Index {}", currentClusterIdx)
                 if (configMapData.clusters.isDefined) {
                   configMapData.clusters.get(currentClusterIdx).brokerIps.foreach((ele) => brokerIps.addOne(ele))
@@ -112,7 +149,7 @@ class ZookeeperWatcher extends DefaultWatcher {
 
               newData.put("configMapData", write(configMapData))
               newConfigMap.setData(newData.asJava)
-              updateConfigMap(currentConfigMap, newConfigMap)
+              updateConfigMap(configName, currentConfigMap, newConfigMap)
               break
             } catch {
               case ex: Exception =>
@@ -154,12 +191,12 @@ class ZookeeperWatcher extends DefaultWatcher {
     currentConfigMap.getData.get("broker-ip").split(",").toList
   }
 
-  def updateConfigMap(oldConfigMap: ConfigMap, newConfigMap: ConfigMap): Unit = {
+  def updateConfigMap(configMapName: String, oldConfigMap: ConfigMap, newConfigMap: ConfigMap): Unit = {
     try {
       log.info("Updating configMap")
       val config = new ConfigBuilder().build()
       val client = new DefaultKubernetesClient(config)
-      client.configMaps.inNamespace(client.getNamespace).withName(configName).lockResourceVersion(oldConfigMap.getMetadata.getResourceVersion).replace(newConfigMap)
+      client.configMaps.inNamespace(client.getNamespace).withName(configMapName).lockResourceVersion(oldConfigMap.getMetadata.getResourceVersion).replace(newConfigMap)
     } catch {
       case e: Exception =>
         log.error("Failed to create Zookeeper Watcher", e)
