@@ -15,7 +15,8 @@ class ConfigMapDependentResource extends KubernetesDependentResource[ConfigMap, 
   override protected def desired(primary: KMT, context: Context[KMT]): ConfigMap = {
     val name: String = "desired-config-map"
     var configMap: ConfigMap = null
-    val initConfigMapData = "{\"clusters\":[{\"name\":\"kafka-ingest-enriched\",\"brokerIps\":[]},{\"name\":\"cluster-b\",\"brokerIps\":[]}]}"
+//    val initConfigMapData = "{\"clusters\":[{\"name\":\"kafka-ingest-enriched\",\"brokerIps\":[]},{\"name\":\"cluster-b\",\"brokerIps\":[]}]}"
+    val initConfigMapData = "{\"clusters\":null}"
     try configMap = new ConfigMapBuilder().withNewMetadata.withNamespace(getKubernetesClient.getNamespace).withName(name).endMetadata
       .addToData("configMapData", initConfigMapData).build
     catch {
@@ -27,7 +28,7 @@ class ConfigMapDependentResource extends KubernetesDependentResource[ConfigMap, 
   }
 
   override def create(target: ConfigMap, primary: KMT, context: Context[KMT]): ConfigMap = {
-    log.info("^^ Creating NOW")
+    log.info("Creating Parent ConfigMap")
     try super.create(target, primary, context)
     catch {
       case e: Exception =>

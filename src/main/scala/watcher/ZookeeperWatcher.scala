@@ -17,15 +17,15 @@ import scala.util.control.Breaks.{break, breakable}
 
 case class Cluster(var name: String, var brokerIps: List[String])
 
-case class ConfigData(clusters: List[Cluster])
+case class ConfigData(var clusters: Option[List[Cluster]])
 
 class ZookeeperWatcher extends DefaultWatcher {
 
   private val log = LoggerFactory.getLogger(classOf[ZookeeperWatcher])
   private val zkPath = "/service"
   private val configName = "desired-config-map"
-  var defaultRetries = 5;
-  var defaultTimeToWaitMillis = 1000;
+  var defaultRetries = 5
+  var defaultTimeToWaitMillis = 1000
 
   private var kubernetesClient: KubernetesClient = null
   private var curator: CuratorFramework = null
@@ -48,6 +48,28 @@ class ZookeeperWatcher extends DefaultWatcher {
     }
   }
 
+  def createChildCluster(configMapData: ConfigData, clusterName: String) = {
+    val cluster = Cluster(clusterName, new ListBuffer[String]().toList)
+    val clusters = new ListBuffer[Cluster]
+
+    if (configMapData.clusters.isDefined) {
+      configMapData.clusters.get.foreach(c => clusters.addOne(c));
+    }
+    clusters.addOne(cluster)
+    configMapData.clusters = Some(clusters.toList)
+  }
+
+  def getClusterIndex(configMapData: ConfigData, clusterName: String): Int = {
+    if (configMapData.clusters.isDefined) {
+      val currCluster = configMapData.clusters.get.filter(ele => ele.name.equals(clusterName))
+      if (currCluster.isEmpty)
+        return -1
+      configMapData.clusters.get.indexOf(currCluster.head)
+    } else {
+      -1
+    }
+  }
+
   def processTreeCacheEvent(event: TreeCacheEvent): Unit = {
     event.getType match {
       case Type.NODE_ADDED =>
@@ -66,19 +88,28 @@ class ZookeeperWatcher extends DefaultWatcher {
               var jValue: JValue = null
               var configMapData: ConfigData = null;
               var currentClusterIdx: Int = -1
-              implicit val formats = DefaultFormats
+              implicit val formats: DefaultFormats.type = DefaultFormats
               if (currentConfigMap.getData.get("configMapData") != null) {
                 jValue = parse(currentConfigMap.getData.get("configMapData"))
                 configMapData = jValue.extract[ConfigData]
-                currentClusterIdx = configMapData.clusters.indexOf(configMapData.clusters.filter((ele) => ele.name.equals(clusterName)).head)
+                currentClusterIdx = getClusterIndex(configMapData, clusterName)
+                if (currentClusterIdx == -1) {
+                  createChildCluster(configMapData, clusterName)
+                  currentClusterIdx = getClusterIndex(configMapData, clusterName)
+                }
                 log.info("Current Cluster Index {}", currentClusterIdx)
-                configMapData.clusters(currentClusterIdx).brokerIps.foreach((ele) => brokerIps.addOne(ele))
+                if (configMapData.clusters.isDefined) {
+                  configMapData.clusters.get(currentClusterIdx).brokerIps.foreach((ele) => brokerIps.addOne(ele))
+                }
               }
               val newData = new mutable.HashMap[String, String]()
               brokerIps += brokerIp
 
               val newConfigMap: ConfigMap = new ConfigMap(currentConfigMap.getApiVersion, currentConfigMap.getBinaryData, currentConfigMap.getData, currentConfigMap.getImmutable, currentConfigMap.getKind, currentConfigMap.getMetadata)
-              configMapData.clusters(currentClusterIdx).brokerIps = brokerIps.toList
+              if (configMapData.clusters.isDefined) {
+                configMapData.clusters.get(currentClusterIdx).brokerIps = brokerIps.toList
+              }
+
               newData.put("configMapData", write(configMapData))
               newConfigMap.setData(newData.asJava)
               updateConfigMap(currentConfigMap, newConfigMap)
