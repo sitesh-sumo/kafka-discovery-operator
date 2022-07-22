@@ -37,15 +37,15 @@ dependencies {
     implementation group: 'net.liftweb', name: 'lift-json_2.13', version: '3.5.0'
 
 
-// https://mvnrepository.com/artifact/com.typesafe.play/play-json
+    // https://mvnrepository.com/artifact/com.typesafe.play/play-json
     implementation 'com.typesafe.play:play-json_2.13:2.9.2'
 
     // https://mvnrepository.com/artifact/com.typesafe/config
     implementation 'com.typesafe:config:1.4.1'
 
     annotationProcessor "io.javaoperatorsdk:operator-framework:3.0.2"
-//    implementation "io.javaoperatorsdk:operator-framework-spring-boot-starter:1.8.4"
-//    annotationProcessor "io.javaoperatorsdk:operator-framework-spring-boot-starter:1.8.4"
+    // implementation "io.javaoperatorsdk:operator-framework-spring-boot-starter:1.8.4"
+    // annotationProcessor "io.javaoperatorsdk:operator-framework-spring-boot-starter:1.8.4"
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.7.0'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.7.0'
 }

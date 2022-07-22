@@ -64,8 +64,8 @@ class ZookeeperWatcher extends DefaultWatcher {
   def createChildConfigMap(name: String) = {
     val configMaps = kubernetesClient.configMaps().inNamespace(kubernetesClient.getNamespace)
     try {
-      val initConfigMapData = "{\"brokerIps\":null}"
-      val newConfigMap = new ConfigMapBuilder().withNewMetadata.withNamespace(kubernetesClient.getNamespace).withName(name).endMetadata.addToData("configMapData", initConfigMapData).build
+      val initConfigMapData = "{bootstrap.servers=\nzookeeper.connect=\n}"
+      val newConfigMap = new ConfigMapBuilder().withNewMetadata.withNamespace(kubernetesClient.getNamespace).withName(name).endMetadata.addToData("properties", initConfigMapData).build
       configMaps.createOrReplace(newConfigMap)
     }
     catch {
@@ -74,20 +74,22 @@ class ZookeeperWatcher extends DefaultWatcher {
     }
   }
 
+  //todo - fetch the right IP
+  def getZookeeperIp() = "172.17.0.13:2181"
+
   def addBrokerIpToChildConfigMap(name: String, brokerIp: String) = {
     val currentConfigMap = kubernetesClient.configMaps().inNamespace(kubernetesClient.getNamespace).withName(name).get
-    val jValue: JValue = parse(currentConfigMap.getData.get("configMapData"))
-    implicit val formats: DefaultFormats.type = DefaultFormats
-    val childClusterData = jValue.extract[ChildCluster]
-    log.info("^^childData" + childClusterData)
+
     val brokerIps = ListBuffer[String]()
-    if (childClusterData.brokerIps.isDefined)
-      childClusterData.brokerIps.get.foreach(ele => brokerIps += ele)
+    val bootstrapServers = currentConfigMap.getData.get("properties").split("\n")(0).split("=")
+    if(bootstrapServers.size > 1)
+      bootstrapServers(1).split(",").foreach(server => brokerIps.addOne(server))
     brokerIps.addOne(brokerIp)
-    childClusterData.brokerIps = Some(brokerIps.toList)
 
     val newData = new mutable.HashMap[String, String]()
-    newData.put("configMapData", write(childClusterData))
+    val zookeeperIp = getZookeeperIp()
+    val placeholder = s"bootstrap.servers=${brokerIps.toList.mkString(",")}\nzookeeper.connect=${zookeeperIp}\n"
+    newData.put("properties", placeholder)
     updateConfigMap(name, currentConfigMap, newData)
 
     log.info("Updated Child CM")
